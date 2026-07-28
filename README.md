@@ -90,9 +90,13 @@ Tools are organized by domain with namespaced names (e.g. `feedings_list_feeding
 | **sleep** | `list_sleep`, `create_sleep`, `update_sleep`, `delete_sleep` |
 | **pumping** | `list_pumping`, `create_pumping`, `update_pumping`, `delete_pumping` |
 | **tummy_times** | `list_tummy_times`, `create_tummy_time`, `update_tummy_time`, `delete_tummy_time` |
-| **timers** | `list_timers`, `get_timer`, `create_timer`, `update_timer`, `delete_timer` |
+| **timers** | `list_timers`, `get_timer`, `create_timer`, `update_timer`, `restart_timer`, `delete_timer` |
 | **measurements** | `list/create/update/delete` × bmi, height, weight, head_circumference, temperature |
+| **medications** | `list_medications`, `create_medication`, `update_medication`, `delete_medication` |
 | **notes** | `list_notes`, `create_note`, `update_note`, `delete_note`, `list_tags`, `create_tag`, `update_tag`, `delete_tag` |
+| **profile** | `get_profile` |
+
+Most `list_*` tools accept `tags` and `ordering` filters where the Baby Buddy API supports them; `create_note`/`update_note` accept an `image_path` to attach an image. Children and tags are addressed by their **slug** (from `list_children` / `list_tags`), not numeric ID.
 
 ## Environment Variables
 

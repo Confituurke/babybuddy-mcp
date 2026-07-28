@@ -8,7 +8,18 @@ _client: httpx.AsyncClient | None = None
 
 QueryParams = dict[str, str | int | float | bool | None]
 
-__all__ = ["api_delete", "api_get", "api_list", "api_patch", "api_post", "QueryParams"]
+__all__ = [
+    "api_delete",
+    "api_get",
+    "api_get_raw",
+    "api_list",
+    "api_patch",
+    "api_patch_action",
+    "api_patch_multipart",
+    "api_post",
+    "api_post_multipart",
+    "QueryParams",
+]
 
 
 def get_client() -> httpx.AsyncClient:
@@ -25,6 +36,16 @@ def get_client() -> httpx.AsyncClient:
 async def api_get(path: str, params: QueryParams | None = None) -> dict[str, object]:
     client = get_client()
     response = await client.get(f"/api/{path}/", params=params)
+    response.raise_for_status()
+    result = response.json()
+    assert isinstance(result, dict)
+    return result
+
+
+async def api_get_raw(path: str, params: QueryParams | None = None) -> dict[str, object]:
+    """GET a path without appending a trailing slash (e.g. /api/profile)."""
+    client = get_client()
+    response = await client.get(f"/api/{path}", params=params)
     response.raise_for_status()
     result = response.json()
     assert isinstance(result, dict)
@@ -75,7 +96,9 @@ async def api_post(path: str, data: dict[str, object]) -> dict[str, object]:
     return result
 
 
-async def api_patch(path: str, record_id: int, data: dict[str, object]) -> dict[str, object]:
+async def api_patch(
+    path: str, record_id: int | str, data: dict[str, object]
+) -> dict[str, object]:
     client = get_client()
     response = await client.patch(f"/api/{path}/{record_id}/", json=data)
     response.raise_for_status()
@@ -84,7 +107,48 @@ async def api_patch(path: str, record_id: int, data: dict[str, object]) -> dict[
     return result
 
 
-async def api_delete(path: str, record_id: int) -> None:
+async def api_patch_action(
+    path: str, record_id: int | str, action: str
+) -> dict[str, object]:
+    """PATCH a detail sub-route (e.g. /api/timers/{id}/restart/) with an empty body."""
+    client = get_client()
+    response = await client.patch(f"/api/{path}/{record_id}/{action}/")
+    response.raise_for_status()
+    result = response.json()
+    assert isinstance(result, dict)
+    return result
+
+
+async def api_delete(path: str, record_id: int | str) -> None:
     client = get_client()
     response = await client.delete(f"/api/{path}/{record_id}/")
     response.raise_for_status()
+
+
+async def api_post_multipart(
+    path: str,
+    data: dict[str, object],
+    files: dict[str, tuple[str, bytes]],
+) -> dict[str, object]:
+    """POST a multipart/form-data body (JSON fields + file uploads)."""
+    client = get_client()
+    response = await client.post(f"/api/{path}/", data=data, files=files)
+    response.raise_for_status()
+    result = response.json()
+    assert isinstance(result, dict)
+    return result
+
+
+async def api_patch_multipart(
+    path: str,
+    record_id: int | str,
+    data: dict[str, object],
+    files: dict[str, tuple[str, bytes]],
+) -> dict[str, object]:
+    """PATCH a multipart/form-data body (JSON fields + file uploads)."""
+    client = get_client()
+    response = await client.patch(f"/api/{path}/{record_id}/", data=data, files=files)
+    response.raise_for_status()
+    result = response.json()
+    assert isinstance(result, dict)
+    return result

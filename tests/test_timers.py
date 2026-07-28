@@ -7,6 +7,7 @@ from babybuddy_mcp.tools.timers import (
     delete_timer,
     get_timer,
     list_timers,
+    restart_timer,
     update_timer,
 )
 
@@ -55,6 +56,25 @@ async def test_update_timer(mock_api: respx.MockRouter) -> None:
     )
     result = await update_timer(1, name="Sleep")
     assert result["name"] == "Sleep"
+
+
+async def test_list_timers_name_filter(mock_api: respx.MockRouter) -> None:
+    route = mock_api.get("/api/timers/").mock(
+        return_value=httpx.Response(
+            200, json={"count": 1, "next": None, "previous": None, "results": [TIMER]}
+        )
+    )
+    await list_timers(name="Feeding")
+    assert route.calls[0].request.url.params["name"] == "Feeding"
+
+
+async def test_restart_timer(mock_api: respx.MockRouter) -> None:
+    route = mock_api.patch("/api/timers/1/restart/").mock(
+        return_value=httpx.Response(200, json={**TIMER, "start": "2024-01-15T12:00:00Z"})
+    )
+    result = await restart_timer(1)
+    assert route.called
+    assert result["id"] == 1
 
 
 async def test_delete_timer(mock_api: respx.MockRouter) -> None:

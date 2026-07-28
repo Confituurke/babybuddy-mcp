@@ -2,23 +2,39 @@ from typing import Annotated
 
 from fastmcp import FastMCP
 
-from ..client import api_get, api_list, api_patch, api_post
+from ..client import QueryParams, api_get, api_list, api_patch, api_post
 
 mcp = FastMCP("children")
 
 
 @mcp.tool
-async def list_children() -> list[dict[str, object]]:
-    """List all child profiles. Always call this first to get child IDs needed by other tools."""
-    return await api_list("children")
+async def list_children(
+    first_name: Annotated[str | None, "Filter by exact first name"] = None,
+    last_name: Annotated[str | None, "Filter by exact last name"] = None,
+    birth_date: Annotated[str | None, "Filter by birth date, YYYY-MM-DD"] = None,
+    ordering: Annotated[
+        str | None, "Order by field, e.g. 'birth_date' or '-birth_date' (descending)"
+    ] = None,
+) -> list[dict[str, object]]:
+    """List child profiles. Always call this first to get child IDs and slugs needed by other tools."""
+    params: QueryParams = {}
+    if first_name is not None:
+        params["first_name"] = first_name
+    if last_name is not None:
+        params["last_name"] = last_name
+    if birth_date is not None:
+        params["birth_date"] = birth_date
+    if ordering is not None:
+        params["ordering"] = ordering
+    return await api_list("children", params or None)
 
 
 @mcp.tool
 async def get_child(
-    child_id: Annotated[int, "ID of the child to retrieve"],
+    slug: Annotated[str, "Slug of the child to retrieve (the 'slug' field from list_children)"],
 ) -> dict[str, object]:
-    """Get a single child profile by ID."""
-    return await api_get(f"children/{child_id}")
+    """Get a single child profile by slug. Children are keyed by slug, not numeric ID."""
+    return await api_get(f"children/{slug}")
 
 
 @mcp.tool
@@ -41,13 +57,13 @@ async def create_child(
 
 @mcp.tool
 async def update_child(
-    child_id: Annotated[int, "ID of the child to update"],
+    slug: Annotated[str, "Slug of the child to update (the 'slug' field from list_children)"],
     first_name: Annotated[str | None, "New first name"] = None,
     last_name: Annotated[str | None, "New last name"] = None,
     birth_date: Annotated[str | None, "New birth date in YYYY-MM-DD format"] = None,
     birth_time: Annotated[str | None, "New birth time in HH:MM:SS format"] = None,
 ) -> dict[str, object]:
-    """Update a child's profile. Only provided fields are changed."""
+    """Update a child's profile by slug. Only provided fields are changed."""
     data: dict[str, object] = {}
     if first_name is not None:
         data["first_name"] = first_name
@@ -57,4 +73,4 @@ async def update_child(
         data["birth_date"] = birth_date
     if birth_time is not None:
         data["birth_time"] = birth_time
-    return await api_patch("children", child_id, data)
+    return await api_patch("children", slug, data)

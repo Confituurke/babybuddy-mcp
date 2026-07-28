@@ -10,24 +10,36 @@ mcp = FastMCP("sleep")
 @mcp.tool
 async def list_sleep(
     child_id: Annotated[int | None, "Filter by child ID. Use list_children to get IDs."] = None,
+    start: Annotated[str | None, "Filter by exact start time, ISO 8601"] = None,
     start_min: Annotated[str | None, "Earliest start time, ISO 8601"] = None,
     start_max: Annotated[str | None, "Latest start time, ISO 8601"] = None,
+    end: Annotated[str | None, "Filter by exact end time, ISO 8601"] = None,
     end_min: Annotated[str | None, "Earliest end time, ISO 8601"] = None,
     end_max: Annotated[str | None, "Latest end time, ISO 8601"] = None,
+    tags: Annotated[list[str] | None, "Filter by tag names (records having all listed tags)"] = None,
+    ordering: Annotated[str | None, "Order by field, e.g. 'start' or '-start' (descending)"] = None,
     limit: Annotated[int, "Maximum number of records to return"] = 50,
 ) -> list[dict[str, object]]:
     """List sleep records with optional filters."""
     params: QueryParams = {"limit": limit}
     if child_id is not None:
         params["child"] = child_id
+    if start is not None:
+        params["start"] = start
     if start_min is not None:
         params["start_min"] = start_min
     if start_max is not None:
         params["start_max"] = start_max
+    if end is not None:
+        params["end"] = end
     if end_min is not None:
         params["end_min"] = end_min
     if end_max is not None:
         params["end_max"] = end_max
+    if tags:
+        params["tags"] = ",".join(tags)
+    if ordering is not None:
+        params["ordering"] = ordering
     return await api_list("sleep", params)
 
 

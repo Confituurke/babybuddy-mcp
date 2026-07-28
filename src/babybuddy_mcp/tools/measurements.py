@@ -7,19 +7,23 @@ from ..client import QueryParams, api_delete, api_list, api_patch, api_post
 mcp = FastMCP("measurements")
 
 
-def _date_params(
+def _measure_params(
     child_id: int | None,
-    date_min: str | None,
-    date_max: str | None,
+    date: str | None,
+    ordering: str | None,
     limit: int,
 ) -> QueryParams:
+    """Build list params for BMI/height/weight/head-circumference.
+
+    Upstream only exposes exact `date` matching for these resources (no range).
+    """
     params: QueryParams = {"limit": limit}
     if child_id is not None:
         params["child"] = child_id
-    if date_min is not None:
-        params["date_min"] = date_min
-    if date_max is not None:
-        params["date_max"] = date_max
+    if date is not None:
+        params["date"] = date
+    if ordering is not None:
+        params["ordering"] = ordering
     return params
 
 
@@ -29,12 +33,12 @@ def _date_params(
 @mcp.tool
 async def list_bmi(
     child_id: Annotated[int | None, "Filter by child ID. Use list_children to get IDs."] = None,
-    date_min: Annotated[str | None, "Start of date range, YYYY-MM-DD"] = None,
-    date_max: Annotated[str | None, "End of date range, YYYY-MM-DD"] = None,
+    date: Annotated[str | None, "Filter by exact date, YYYY-MM-DD"] = None,
+    ordering: Annotated[str | None, "Order by field, e.g. 'date' or '-date' (descending)"] = None,
     limit: Annotated[int, "Maximum number of records to return"] = 50,
 ) -> list[dict[str, object]]:
     """List BMI measurements."""
-    return await api_list("bmi", _date_params(child_id, date_min, date_max, limit))
+    return await api_list("bmi", _measure_params(child_id, date, ordering, limit))
 
 
 @mcp.tool
@@ -84,12 +88,12 @@ async def delete_bmi(
 @mcp.tool
 async def list_height(
     child_id: Annotated[int | None, "Filter by child ID. Use list_children to get IDs."] = None,
-    date_min: Annotated[str | None, "Start of date range, YYYY-MM-DD"] = None,
-    date_max: Annotated[str | None, "End of date range, YYYY-MM-DD"] = None,
+    date: Annotated[str | None, "Filter by exact date, YYYY-MM-DD"] = None,
+    ordering: Annotated[str | None, "Order by field, e.g. 'date' or '-date' (descending)"] = None,
     limit: Annotated[int, "Maximum number of records to return"] = 50,
 ) -> list[dict[str, object]]:
     """List height measurements."""
-    return await api_list("height", _date_params(child_id, date_min, date_max, limit))
+    return await api_list("height", _measure_params(child_id, date, ordering, limit))
 
 
 @mcp.tool
@@ -139,12 +143,12 @@ async def delete_height(
 @mcp.tool
 async def list_weight(
     child_id: Annotated[int | None, "Filter by child ID. Use list_children to get IDs."] = None,
-    date_min: Annotated[str | None, "Start of date range, YYYY-MM-DD"] = None,
-    date_max: Annotated[str | None, "End of date range, YYYY-MM-DD"] = None,
+    date: Annotated[str | None, "Filter by exact date, YYYY-MM-DD"] = None,
+    ordering: Annotated[str | None, "Order by field, e.g. 'date' or '-date' (descending)"] = None,
     limit: Annotated[int, "Maximum number of records to return"] = 50,
 ) -> list[dict[str, object]]:
     """List weight measurements."""
-    return await api_list("weight", _date_params(child_id, date_min, date_max, limit))
+    return await api_list("weight", _measure_params(child_id, date, ordering, limit))
 
 
 @mcp.tool
@@ -194,12 +198,14 @@ async def delete_weight(
 @mcp.tool
 async def list_head_circumference(
     child_id: Annotated[int | None, "Filter by child ID. Use list_children to get IDs."] = None,
-    date_min: Annotated[str | None, "Start of date range, YYYY-MM-DD"] = None,
-    date_max: Annotated[str | None, "End of date range, YYYY-MM-DD"] = None,
+    date: Annotated[str | None, "Filter by exact date, YYYY-MM-DD"] = None,
+    ordering: Annotated[str | None, "Order by field, e.g. 'date' or '-date' (descending)"] = None,
     limit: Annotated[int, "Maximum number of records to return"] = 50,
 ) -> list[dict[str, object]]:
     """List head circumference measurements."""
-    return await api_list("head-circumference", _date_params(child_id, date_min, date_max, limit))
+    return await api_list(
+        "head-circumference", _measure_params(child_id, date, ordering, limit)
+    )
 
 
 @mcp.tool
@@ -253,12 +259,28 @@ async def delete_head_circumference(
 @mcp.tool
 async def list_temperature(
     child_id: Annotated[int | None, "Filter by child ID. Use list_children to get IDs."] = None,
+    date: Annotated[str | None, "Filter by exact date, YYYY-MM-DD"] = None,
     date_min: Annotated[str | None, "Start of date range, YYYY-MM-DD"] = None,
     date_max: Annotated[str | None, "End of date range, YYYY-MM-DD"] = None,
+    tags: Annotated[list[str] | None, "Filter by tag names (records having all listed tags)"] = None,
+    ordering: Annotated[str | None, "Order by field, e.g. 'time' or '-time' (descending)"] = None,
     limit: Annotated[int, "Maximum number of records to return"] = 50,
 ) -> list[dict[str, object]]:
     """List temperature readings."""
-    return await api_list("temperature", _date_params(child_id, date_min, date_max, limit))
+    params: QueryParams = {"limit": limit}
+    if child_id is not None:
+        params["child"] = child_id
+    if date is not None:
+        params["date"] = date
+    if date_min is not None:
+        params["date_min"] = date_min
+    if date_max is not None:
+        params["date_max"] = date_max
+    if tags:
+        params["tags"] = ",".join(tags)
+    if ordering is not None:
+        params["ordering"] = ordering
+    return await api_list("temperature", params)
 
 
 @mcp.tool
