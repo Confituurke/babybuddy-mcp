@@ -2,7 +2,15 @@ from typing import Annotated
 
 from fastmcp import FastMCP
 
-from ..client import QueryParams, api_delete, api_get, api_list, api_patch, api_post
+from ..client import (
+    QueryParams,
+    api_delete,
+    api_get,
+    api_list,
+    api_patch,
+    api_patch_action,
+    api_post,
+)
 
 mcp = FastMCP("timers")
 
@@ -10,11 +18,17 @@ mcp = FastMCP("timers")
 @mcp.tool
 async def list_timers(
     child_id: Annotated[int | None, "Filter by child ID. Use list_children to get IDs."] = None,
+    name: Annotated[str | None, "Filter by exact timer name"] = None,
+    ordering: Annotated[str | None, "Order by field, e.g. 'start' or '-start' (descending)"] = None,
 ) -> list[dict[str, object]]:
     """List active and recent timers. Use timer IDs when creating feedings, sleep, pumping, or tummy time records."""
     params: QueryParams = {}
     if child_id is not None:
         params["child"] = child_id
+    if name is not None:
+        params["name"] = name
+    if ordering is not None:
+        params["ordering"] = ordering
     return await api_list("timers", params)
 
 
@@ -53,6 +67,14 @@ async def update_timer(
     if child_id is not None:
         data["child"] = child_id
     return await api_patch("timers", timer_id, data)
+
+
+@mcp.tool
+async def restart_timer(
+    timer_id: Annotated[int, "ID of the timer to restart"],
+) -> dict[str, object]:
+    """Restart a timer, resetting its start time to now while keeping the same timer."""
+    return await api_patch_action("timers", timer_id, "restart")
 
 
 @mcp.tool

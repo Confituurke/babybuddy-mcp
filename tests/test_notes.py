@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import httpx
 import pytest
 import respx
@@ -16,7 +18,7 @@ from babybuddy_mcp.tools.notes import (
 BASE = "http://test-babybuddy"
 
 NOTE = {"id": 1, "child": 1, "note": "First smile!", "time": "2024-01-15T10:00:00Z"}
-TAG = {"id": 1, "name": "milestone", "color": "#ff5733"}
+TAG = {"slug": "milestone", "name": "milestone", "color": "#ff5733"}
 
 
 @pytest.fixture
@@ -33,6 +35,18 @@ async def test_list_notes(mock_api: respx.MockRouter) -> None:
     )
     result = await list_notes()
     assert result[0]["note"] == "First smile!"
+
+
+async def test_list_notes_with_tags_and_date(mock_api: respx.MockRouter) -> None:
+    route = mock_api.get("/api/notes/").mock(
+        return_value=httpx.Response(
+            200, json={"count": 1, "next": None, "previous": None, "results": [NOTE]}
+        )
+    )
+    await list_notes(date="2024-01-15", tags=["milestone", "smile"])
+    params = route.calls[0].request.url.params
+    assert params["date"] == "2024-01-15"
+    assert params["tags"] == "milestone,smile"
 
 
 async def test_create_note(mock_api: respx.MockRouter) -> None:
@@ -57,6 +71,34 @@ async def test_update_note(mock_api: respx.MockRouter) -> None:
     assert result["note"] == "Updated!"
 
 
+async def test_create_note_with_image(
+    mock_api: respx.MockRouter, tmp_path: Path
+) -> None:
+    image = tmp_path / "smile.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n fake image bytes")
+    route = mock_api.post("/api/notes/").mock(return_value=httpx.Response(201, json=NOTE))
+    await create_note(
+        child_id=1,
+        note="First smile!",
+        time="2024-01-15T10:00:00",
+        image_path=str(image),
+    )
+    request = route.calls[0].request
+    assert request.headers["content-type"].startswith("multipart/form-data")
+    assert b"smile.png" in request.content
+
+
+async def test_update_note_with_image(
+    mock_api: respx.MockRouter, tmp_path: Path
+) -> None:
+    image = tmp_path / "smile.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n fake image bytes")
+    route = mock_api.patch("/api/notes/1/").mock(return_value=httpx.Response(200, json=NOTE))
+    await update_note(1, note="Updated!", image_path=str(image))
+    request = route.calls[0].request
+    assert request.headers["content-type"].startswith("multipart/form-data")
+
+
 async def test_delete_note(mock_api: respx.MockRouter) -> None:
     mock_api.delete("/api/notes/1/").mock(return_value=httpx.Response(204))
     result = await delete_note(1)
@@ -79,15 +121,15 @@ async def test_create_tag(mock_api: respx.MockRouter) -> None:
     assert result["color"] == "#ff5733"
 
 
-async def test_update_tag(mock_api: respx.MockRouter) -> None:
-    mock_api.patch("/api/tags/1/").mock(
+async def test_update_tag_by_slug(mock_api: respx.MockRouter) -> None:
+    mock_api.patch("/api/tags/milestone/").mock(
         return_value=httpx.Response(200, json={**TAG, "color": "#00ff00"})
     )
-    result = await update_tag(1, color="#00ff00")
+    result = await update_tag("milestone", color="#00ff00")
     assert result["color"] == "#00ff00"
 
 
-async def test_delete_tag(mock_api: respx.MockRouter) -> None:
-    mock_api.delete("/api/tags/1/").mock(return_value=httpx.Response(204))
-    result = await delete_tag(1)
-    assert "1" in result
+async def test_delete_tag_by_slug(mock_api: respx.MockRouter) -> None:
+    mock_api.delete("/api/tags/milestone/").mock(return_value=httpx.Response(204))
+    result = await delete_tag("milestone")
+    assert "milestone" in result

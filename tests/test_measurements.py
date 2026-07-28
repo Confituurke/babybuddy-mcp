@@ -37,6 +37,31 @@ async def test_list_bmi(mock_api: respx.MockRouter) -> None:
     assert result[0]["bmi"] == 15.2
 
 
+async def test_list_bmi_exact_date_and_ordering(mock_api: respx.MockRouter) -> None:
+    route = mock_api.get("/api/bmi/").mock(
+        return_value=httpx.Response(
+            200, json={"count": 0, "next": None, "previous": None, "results": []}
+        )
+    )
+    await list_bmi(date="2024-01-01", ordering="-date")
+    params = route.calls[0].request.url.params
+    assert params["date"] == "2024-01-01"
+    assert params["ordering"] == "-date"
+    assert "date_min" not in params
+
+
+async def test_list_temperature_range_and_tags(mock_api: respx.MockRouter) -> None:
+    route = mock_api.get("/api/temperature/").mock(
+        return_value=httpx.Response(
+            200, json={"count": 0, "next": None, "previous": None, "results": []}
+        )
+    )
+    await list_temperature(date_min="2024-01-01", date_max="2024-02-01", tags=["fever"])
+    params = route.calls[0].request.url.params
+    assert params["date_min"] == "2024-01-01"
+    assert params["tags"] == "fever"
+
+
 async def test_create_bmi(mock_api: respx.MockRouter) -> None:
     mock_api.post("/api/bmi/").mock(
         return_value=httpx.Response(201, json={"id": 1, "child": 1, "date": "2024-01-01", "bmi": 15.2})

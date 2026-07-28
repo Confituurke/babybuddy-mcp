@@ -3,7 +3,17 @@ import pytest
 import respx
 
 from babybuddy_mcp import client as client_module
-from babybuddy_mcp.client import api_delete, api_get, api_list, api_patch, api_post
+from babybuddy_mcp.client import (
+    api_delete,
+    api_get,
+    api_get_raw,
+    api_list,
+    api_patch,
+    api_patch_action,
+    api_patch_multipart,
+    api_post,
+    api_post_multipart,
+)
 
 BASE = "http://test-babybuddy"
 
@@ -98,6 +108,61 @@ async def test_api_delete_raises_on_error(mock_api: respx.MockRouter) -> None:
     mock_api.delete("/api/feedings/99/").mock(return_value=httpx.Response(404))
     with pytest.raises(httpx.HTTPStatusError):
         await api_delete("feedings", 99)
+
+
+async def test_api_patch_accepts_slug(mock_api: respx.MockRouter) -> None:
+    mock_api.patch("/api/children/alice-smith/").mock(
+        return_value=httpx.Response(200, json={"slug": "alice-smith"})
+    )
+    result = await api_patch("children", "alice-smith", {"first_name": "Alicia"})
+    assert result["slug"] == "alice-smith"
+
+
+async def test_api_delete_accepts_slug(mock_api: respx.MockRouter) -> None:
+    mock_api.delete("/api/tags/milestone/").mock(return_value=httpx.Response(204))
+    await api_delete("tags", "milestone")  # should not raise
+
+
+async def test_api_get_raw_no_trailing_slash(mock_api: respx.MockRouter) -> None:
+    route = mock_api.get("/api/profile").mock(
+        return_value=httpx.Response(200, json={"timezone": "UTC"})
+    )
+    result = await api_get_raw("profile")
+    assert route.called
+    assert result["timezone"] == "UTC"
+
+
+async def test_api_patch_action_hits_subroute(mock_api: respx.MockRouter) -> None:
+    route = mock_api.patch("/api/timers/1/restart/").mock(
+        return_value=httpx.Response(200, json={"id": 1})
+    )
+    result = await api_patch_action("timers", 1, "restart")
+    assert route.called
+    assert result["id"] == 1
+
+
+async def test_api_post_multipart_sends_files(mock_api: respx.MockRouter) -> None:
+    route = mock_api.post("/api/notes/").mock(
+        return_value=httpx.Response(201, json={"id": 1})
+    )
+    result = await api_post_multipart(
+        "notes", {"child": 1, "note": "hi"}, {"image": ("pic.png", b"bytes")}
+    )
+    assert result["id"] == 1
+    request = route.calls[0].request
+    assert request.headers["content-type"].startswith("multipart/form-data")
+    assert b"pic.png" in request.content
+
+
+async def test_api_patch_multipart_sends_files(mock_api: respx.MockRouter) -> None:
+    route = mock_api.patch("/api/notes/1/").mock(
+        return_value=httpx.Response(200, json={"id": 1})
+    )
+    await api_patch_multipart(
+        "notes", 1, {"note": "hi"}, {"image": ("pic.png", b"bytes")}
+    )
+    request = route.calls[0].request
+    assert request.headers["content-type"].startswith("multipart/form-data")
 
 
 async def test_client_sends_auth_header(mock_api: respx.MockRouter) -> None:

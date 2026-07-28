@@ -6,12 +6,13 @@ from ..client import QueryParams, api_delete, api_list, api_patch, api_post
 
 mcp = FastMCP("diapers")
 
-_COLORS = "black, white, yellow, brown, green, other"
+_COLORS = "black, brown, green, yellow"
 
 
 @mcp.tool
 async def list_diaper_changes(
     child_id: Annotated[int | None, "Filter by child ID. Use list_children to get IDs."] = None,
+    date: Annotated[str | None, "Filter by exact date, YYYY-MM-DD"] = None,
     date_min: Annotated[str | None, "Start of date range, YYYY-MM-DD"] = None,
     date_max: Annotated[str | None, "End of date range, YYYY-MM-DD"] = None,
     wet: Annotated[bool | None, "Filter by wet diaper (True/False)"] = None,
@@ -19,12 +20,16 @@ async def list_diaper_changes(
     color: Annotated[
         str | None, f"Filter by stool color: {_COLORS}"
     ] = None,
+    tags: Annotated[list[str] | None, "Filter by tag names (records having all listed tags)"] = None,
+    ordering: Annotated[str | None, "Order by field, e.g. 'time' or '-time' (descending)"] = None,
     limit: Annotated[int, "Maximum number of records to return"] = 50,
 ) -> list[dict[str, object]]:
     """List diaper change records with optional filters."""
     params: QueryParams = {"limit": limit}
     if child_id is not None:
         params["child"] = child_id
+    if date is not None:
+        params["date"] = date
     if date_min is not None:
         params["date_min"] = date_min
     if date_max is not None:
@@ -35,6 +40,10 @@ async def list_diaper_changes(
         params["solid"] = solid
     if color is not None:
         params["color"] = color
+    if tags:
+        params["tags"] = ",".join(tags)
+    if ordering is not None:
+        params["ordering"] = ordering
     return await api_list("changes", params)
 
 
